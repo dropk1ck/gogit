@@ -5,6 +5,7 @@ import (
     "fmt"
     "log"
     "os"
+    "gopkg.in/ini.v1"
 )
 
 func CreateDir(name string) {
@@ -40,14 +41,26 @@ func InitRepo() {
     //   .git/config
     //   .git/description
 
-    // the following func calls are sufficent to create an empty repo, all dirs in the
+    // the following code is sufficent to create an empty repo, all dirs in the
     // path will automatically be created if they don't exist
     CreateDirAll(".git/objects/")
     CreateDirAll(".git/refs/heads/")
     CreateDirAll(".git/refs/tags/")
+
     TouchFile(".git/HEAD")
     TouchFile(".git/config")
     TouchFile(".git/description")
+
+    // bare-bones ini config
+    //   - repositoryformatversion is the version of the gitdir format, 0 is typical, 1 is with extensions?
+    //   - filemode controls tracking the file mode changes in the tree
+    //   - bare... I'll look this up later, something to do with worktrees
+    config, _ := ini.Load(".git/config")
+    config.Section("core").Key("repositoryformatversion").SetValue("0")
+    config.Section("core").Key("filemode").SetValue("false")
+    config.Section("core").Key("bare").SetValue("false")
+    config.SaveTo(".git/config")
+
     fmt.Println("Initialized empty repo at .git/")
 }
 
