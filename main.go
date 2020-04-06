@@ -5,6 +5,7 @@ import (
     "bytes"
     "compress/zlib"
     "crypto/sha1"
+    "encoding/hex"
     "fmt"
     "io/ioutil"
     "log"
@@ -53,7 +54,7 @@ func (obj Object) Serialize() []byte {
     return b.Bytes()
 }
 
-func WriteObjectToFile(objBytes []byte, sha1sum []byte) {
+func WriteObjectToFile(objBytes []byte, sha1Sum []byte) {
     // compress the bytes into a buffer
     var zb bytes.Buffer
     w := zlib.NewWriter(&zb)
@@ -61,6 +62,13 @@ func WriteObjectToFile(objBytes []byte, sha1sum []byte) {
     w.Close()
 
     // create the directory paths as needed
+    sha1Hash := hex.EncodeToString(sha1Sum[:])
+    CreateDirAll(".git/objects/" + sha1Hash[0:2])
+
+    err := ioutil.WriteFile(".git/objects/" + sha1Hash[0:2] + "/" + sha1Hash[2:], zb.Bytes(), 0644)
+    if err != nil {
+        log.Fatalf("ERROR: could not write object %s - %s", sha1Hash[2:], err)
+    }
 }
 
 func HashObject(path string, storeObject bool, tag string) {
@@ -70,9 +78,9 @@ func HashObject(path string, storeObject bool, tag string) {
         log.Fatalf("ERROR: cannot read file %s - %s", path, err)
     }
 
-    // serialize object
+    // create an object and serialize it
     obj := NewObject(tag, string(contents))
-    objBytes := SerializeObject(obj)
+    objBytes := obj.Serialize()
 
     // compute the SHA1 hash
     h := sha1.New()
