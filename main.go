@@ -21,10 +21,10 @@ import (
 type Object struct {
     Type string
     Size uint64
-    Contents string
+    Contents []byte
 }
 
-func NewObject(objtype string, contents string) *Object {
+func NewObject(objtype string, contents []byte) *Object {
     obj := new(Object)
     obj.Type = objtype
     obj.Size = uint64(len(contents))
@@ -40,15 +40,15 @@ func NewObject(objtype string, contents string) *Object {
 //     - NULL (0x00)
 //     - object contents
 
-func (obj Object) Serialize() []byte {
+func Serialize(obj *Object) []byte {
     var b bytes.Buffer
 
     // convert our object to bytes
     b.WriteString(obj.Type)
-    b.WriteString(" ")
+    b.WriteByte(' ')
     b.WriteString(strconv.FormatUint(obj.Size, 10))
-    b.WriteString(string(0x00))
-    b.WriteString(obj.Contents)
+    b.WriteByte('\x00')
+    b.Write(obj.Contents)
     return b.Bytes()
 }
 
@@ -62,7 +62,7 @@ func Unserialize(serObj []byte) *Object {
 
     // now find the NULL, contents start after that
     nullPos := bytes.Index(serObj, []byte{'\x00'})
-    obj.Contents = string(serObj[nullPos:])
+    obj.Contents = serObj[nullPos:]
     return obj
 }
 
@@ -119,8 +119,8 @@ func HashObject(path string, storeObject bool, tag string) {
     }
 
     // create an object and serialize it
-    obj := NewObject(tag, string(contents))
-    objBytes := obj.Serialize()
+    obj := NewObject(tag, contents)
+    objBytes := Serialize(obj)
 
     // compute the SHA1 hash
     h := sha1.New()
@@ -137,9 +137,10 @@ func HashObject(path string, storeObject bool, tag string) {
 
 func CatFile(sha1Hash string) {
     obj := ReadObjectFromFile(sha1Hash)
-    fmt.Print(obj.Contents)
+    fmt.Print(string(obj.Contents))
 }
 
+// create a directory
 func CreateDir(name string) {
     err := os.Mkdir(name, 0755)
     if err != nil {
@@ -147,6 +148,7 @@ func CreateDir(name string) {
     }
 }
 
+// create the entire directory path
 func CreateDirAll(path string) {
     err := os.MkdirAll(path, 0755)
     if err != nil {
@@ -154,6 +156,7 @@ func CreateDirAll(path string) {
     }
 }
 
+// create a blank file
 func TouchFile(filepath string) {
     file, err := os.Create(filepath)
     if err != nil {
