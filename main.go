@@ -1,17 +1,18 @@
 package main
 
 import (
-    "flag"
     "bytes"
     "compress/zlib"
     "crypto/sha1"
     "encoding/hex"
+    "flag"
     "fmt"
     "io"
     "io/ioutil"
     "log"
     "os"
     "strconv"
+    //"strings"
     "gopkg.in/ini.v1"
 )
 
@@ -51,6 +52,42 @@ func (obj Object) Serialize() []byte {
     return b.Bytes()
 }
 
+func Unserialize(serObj []byte) *Object {
+    // split bytes on spaces to parse out the header
+    splitObj := bytes.Split(serObj, []byte{' '})
+
+    obj := new(Object)
+    obj.Type = string(splitObj[0])
+    obj.Size, _ = strconv.ParseUint(string(splitObj[1]), 10, 64)
+
+    // now find the NULL, contents start after that
+    nullPos := bytes.Index(serObj, []byte{'\x00'})
+    obj.Contents = string(serObj[nullPos:])
+    return obj
+}
+
+func ReadObjectFromFile(sha1Hash string) *Object {
+    var serObj bytes.Buffer
+
+    filePath := ".git/objects/" + sha1Hash[0:2] + "/" + sha1Hash[2:]
+    zContents, err := ioutil.ReadFile(filePath)
+    if err != nil {
+        log.Fatalf("ERROR: cannot read file %s - %s", filePath, err)
+    }
+
+    // contents are compress with zlib, uncompress
+    br := bytes.NewReader(zContents)
+    zReader, err := zlib.NewReader(br)
+    if err != nil {
+        log.Fatalf("ERROR: could not decompress contents - %s", err)
+    }
+    io.Copy(&serObj, zReader)
+    zReader.Close()
+    //obj.Unserialize(serObj.Bytes())
+    obj := Unserialize(serObj.Bytes())
+    return obj
+}
+
 // stores a serialized git object to the repository
 //   - take sha1 sum of contents
 //   - first 2 bytes are dirname
@@ -72,25 +109,6 @@ func WriteObjectToFile(objBytes []byte, sha1Sum []byte) {
     if err != nil {
         log.Fatalf("ERROR: could not write object %s - %s", sha1Hash[2:], err)
     }
-}
-
-func ReadObjectFromFile(sha1Hash string) {
-    //var contents bytes.Buffer
-
-    filePath := ".git/objects/" + sha1Hash[0:2] + "/" + sha1Hash[2:]
-    zContents, err := ioutil.ReadFile(filePath)
-    if err != nil {
-        log.Fatalf("ERROR: cannot read file %s - %s", filePath, err)
-    }
-
-    // contents are compress with zlib, uncompress
-    zReader := bytes.NewReader(zContents)
-    r, err := zlib.NewReader(zReader)
-    if err != nil {
-        log.Fatalf("ERROR: could not decompress contents - %s", err)
-    }
-    io.Copy(os.Stdout, r)
-    r.Close()
 }
 
 func HashObject(path string, storeObject bool, tag string) {
@@ -115,6 +133,11 @@ func HashObject(path string, storeObject bool, tag string) {
     if (storeObject) {
         WriteObjectToFile(objBytes, sha1sum)
     }
+}
+
+func CatFile(sha1Hash string) {
+    obj := ReadObjectFromFile(sha1Hash)
+    fmt.Print(obj.Contents)
 }
 
 func CreateDir(name string) {
@@ -207,7 +230,7 @@ func main() {
             os.Exit(1)
         }
         sha1Hash := args[1]
-        ReadObjectFromFile(sha1Hash)
+        CatFile(sha1Hash)
     default:
         fmt.Println("unknown subcommand: %s", subcommand)
     }
