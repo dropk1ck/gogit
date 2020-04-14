@@ -12,7 +12,6 @@ import (
     "log"
     "os"
     "strconv"
-    //"strings"
     "gopkg.in/ini.v1"
 )
 
@@ -83,7 +82,6 @@ func ReadObjectFromFile(sha1Hash string) *Object {
     }
     io.Copy(&serObj, zReader)
     zReader.Close()
-    //obj.Unserialize(serObj.Bytes())
     obj := Unserialize(serObj.Bytes())
     return obj
 }
@@ -140,7 +138,7 @@ func CatFile(sha1Hash string) {
     fmt.Print(string(obj.Contents))
 }
 
-// create a directory
+// create a directory, the prefix path must already exist
 func CreateDir(name string) {
     err := os.Mkdir(name, 0755)
     if err != nil {
